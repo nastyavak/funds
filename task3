@@ -1,0 +1,151 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+#include <stdlib.h>
+
+int search(char *str1, char *str2, int n){
+    for(int i = 0; i < n; i++){
+        if(str1[i] != str2[i])
+            return 1;
+    }
+    return 0;
+}
+
+char *unescape(char *s){
+    int len = strlen(s);
+    char *res = (char *)malloc(len + 1);
+    int pos = 0;
+    for (int i = 0; i < len; i++){
+        if (s[i] == '\\'){
+            if (s[i + 1] == 'n'){
+                res[pos] = '\n';
+                pos++;
+                i++;
+            }
+            else if (s[i + 1] == 't'){
+                res[pos] = '\t';
+                pos++;
+                i++;
+            }
+            else if (s[i + 1] == '\\'){
+                res[pos] = '\\';
+                pos++;
+                i++;
+            }
+            else {
+                res[pos] = s[i];
+                pos++;
+            }
+        }
+        else {
+            res[pos] = s[i];
+            pos++;
+        }
+    }
+    res[pos] = '\0';
+    return res;
+}
+
+int func(char *str, int n, ...){
+    if (!str) {
+        printf("пустая строка\n");
+        return -1;
+    }
+    va_list args;
+    va_start(args, n);
+    int len_str = strlen(str);
+
+    for(int i = 0; i < n; i++){
+        int c;
+        int cap = 1024;
+        int char_cnt = 0;
+        int str_cnt = 1;
+        char *name = va_arg(args, char*);
+        FILE *file = fopen(name, "r");
+        if(!file){
+            printf("не удалось открыть файл\n");
+            continue;
+        }
+
+        char *line = malloc(sizeof(char) * cap);
+        if(!line){
+            printf("не удалось выделить память для строки\n");
+            fclose(file);
+            return -1;
+        }
+
+        while(1){
+            c = fgetc(file);
+            if(c == EOF){
+                break;
+            }
+            if(char_cnt + 1 >= cap){
+                char *temp = realloc(line, cap*2);
+                if(!temp){
+                    printf("ошибка выделения памяти\n");
+                    fclose(file);
+                    free(line);
+                    va_end(args);
+                    return -1;
+                }
+                line = temp;
+                cap *= 2;
+            }
+
+            line[char_cnt] = c;
+            char_cnt++;
+
+            if(c == '\n'){
+                line[char_cnt] = '\0';
+                for(int j = 0; j < char_cnt - len_str + 1; j++){
+                    if(search(line + j, str, len_str) == 0){
+                        printf("file %s, line %d, index %d\n", name, str_cnt, j + 1);
+                    }
+                }
+                char_cnt = 0;
+                str_cnt++;
+            }
+        }
+
+        if(char_cnt > 0){
+            line[char_cnt] = '\0';
+            for(int j = 0; j < char_cnt - len_str + 1; j++){
+                if(search(line + j, str, len_str) == 0){
+                    printf("file %s, line %d, index %d\n", name, str_cnt, j + 1);
+                }
+            }
+        }
+        fclose(file);
+        free(line);
+    }
+    va_end(args);
+    return 0;
+}
+
+int main(int argc, char *argv[]){
+    int res = 0;
+    if (argc >= 3) {
+        char *str = unescape(argv[1]);
+        int file_count = argc - 2;
+        if (file_count > 5) {
+            printf("введите <= 5 файлов\n");
+            free(str);
+            return 1;
+        }
+        switch (file_count) {
+            case 1: res = func(str, 1, argv[2]); break;
+            case 2: res = func(str, 2, argv[2], argv[3]); break;
+            case 3: res = func(str, 3, argv[2], argv[3], argv[4]); break;
+            case 4: res = func(str, 4, argv[2], argv[3], argv[4], argv[5]); break;
+            case 5: res = func(str, 5, argv[2], argv[3], argv[4], argv[5], argv[6]); break;
+        }
+        free(str);
+    } 
+    else {
+        printf("недостаточно аргументов\n");
+        return 1;
+    }
+    if(res != 0)
+        return 1;
+    return 0;
+}
